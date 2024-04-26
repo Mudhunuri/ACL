@@ -1,38 +1,21 @@
-# from django.core import validators
-# from django.db import models
-# from django.contrib.auth.models import User
-# from core.constants import DOCTOR_ADMIN,PATIENT_ADMIN
+from django.db import models
+from django.utils.translation import gettext_lazy as _
+from core.model.manager import ActiveUserManager
+from django.contrib.auth.models import AbstractBaseUser
+from django.db import models
 
-# from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
-# from django.db import models
+class BaseUser(AbstractBaseUser):
+    is_active = models.BooleanField(_('active'),default=True)
+    email = models.EmailField(unique=True)
+    first_name = models.CharField(max_length=100, blank=True)
+    last_name = models.CharField(max_length=100, blank=True)
+    experience = models.IntegerField(null=True)
+    phone = models.CharField(max_length=15, blank=True)
+    password = models.CharField(max_length=100, blank=True)
+    degree = models.CharField(max_length=15,blank=True,null=True)  # Note: You might want to use Django's built-in password field for security
+    objects=ActiveUserManager()
+    role=models.CharField(max_length=50, blank=True)
+    USERNAME_FIELD = 'email'
 
-# class Doctor(AbstractBaseUser):
-#     email = models.EmailField(unique=True)
-#     first_name = models.CharField(max_length=100)
-#     last_name = models.CharField(max_length=100)
-#     experience = models.IntegerField()
-#     phone = models.CharField(max_length=15)
-#     password = models.CharField(max_length=100)
-#     degree = models.CharField(max_length=15,blank=True)  # Note: You might want to use Django's built-in password field for security
-
-#     USERNAME_FIELD = 'email'
-#     REQUIRED_FIELDS = ['email']
-
-#     def __str__(self):
-#         return self.email
-
-# class PatientUser(models.Model):
-#     """
-#     Adcuser keeps all the adcuratio user information. This model
-#     is related to :class:`Agency` , :class:`Company`,
-#     :class:`Brand` , :class:`Channel`
-#     """
-#     # first name of the user.
-#     first_name = models.CharField(max_length=250, blank=True)
-#     # last name of the user.
-#     last_name = models.CharField(max_length=250, blank=True)
-#     # email of the user.
-#     email = models.EmailField(unique=True, blank=True)
-#     phone = models.CharField(blank=True, null=True,max_length=15)
-#     password = models.CharField(max_length=250)
-#     #objects = ActiveUserManager()
+    def __str__(self):
+        return self.email

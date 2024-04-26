@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/4.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
-
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -41,11 +41,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
-    'core',
     'rest_framework',
     'rest_framework.authtoken',
     'corsheaders',
+    'core',
 ]
 
 MIDDLEWARE = [
@@ -61,8 +60,10 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'latrobe.urls'
 
+AUTH_USER_MODEL='core.BaseUser'
+PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
 TEMPLATES = [
-    {
+    { 'DIRS': [os.path.join(PROJECT_ROOT, 'templates')],
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [],
         'APP_DIRS': True,
@@ -77,11 +78,13 @@ TEMPLATES = [
     },
 ]
 
-EMAIL_USE_TLS = True
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
-EMAIL_HOST_USER = 'mudhunurishalini@gmail.com'
-EMAIL_HOST_PASSWORD = '984984561'
+EMAIL_HOST_USER = 'acl.notifications.no.reply@gmail.com'
+EMAIL_HOST_PASSWORD = 'vgajshvqlwvdooka'
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
 
 WSGI_APPLICATION = 'latrobe.wsgi.application'
 
@@ -153,3 +156,4 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.SessionAuthentication',
     ),
 }
+TOKEN_EXPIRED_AFTER_SECONDS=24*60*60
