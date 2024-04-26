@@ -70,15 +70,11 @@ def reset_password_notification(user):
     from django.core.mail import send_mail
     from django.template.loader import render_to_string
     from django.utils.html import strip_tags
-    reset_password_link = generate_reset_password_link(user=user,host="http://localhost:3000")
+    reset_password_link = generate_reset_password_link(user=user,host="http://localhost:3000/")
     subject = 'Reset Your Password'
     html_message = render_to_string('forgot_password_email.html', {'reset_password_link': reset_password_link})
     plain_message = strip_tags(html_message)
-    to_email=['mudhunuri99@gmail.com',]  # Update with your sender email address
-    print(user.email)
-    #to_emails = ['mudhunuri99@gmail.com']
-    #print(type(to_emails))
-
+    to_email=[user.email,]  # Update with your sender email address
     send_mail(subject, plain_message,EMAIL_HOST_USER, to_email, html_message=html_message)
 
 def get_user_from_email(email):
@@ -126,6 +122,7 @@ def reset_password(request):
     :param request: {password}
     :return: {"success": True, "message": Return message}
     """
+    import pdb;pdb.set_trace()
     password = request.data.get("password")
     email = request.data.get('email')
     if password:

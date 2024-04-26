@@ -1,2 +1,2 @@
-DOCTOR_ADMIN = 'Doctor Admin'
-PATIENT_ADMIN = 'Patient Admin'
+DOCTOR_ADMIN = 'doctor'
+PATIENT_ADMIN = 'patient'

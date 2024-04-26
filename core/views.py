@@ -93,10 +93,8 @@ class ForgotPassword(APIView):
               required: true
         """
         email = request.data.get("email")
-        role = request.data.get('role')
-        print(request)
+        import pdb;pdb.set_trace()
         if email is not None:
-            print("not none")
             user = get_user_from_email(email)
             if user is not None:
                 reset_password_notification(user)
@@ -114,8 +112,8 @@ class ResetPassword(APIView):
 
     post: Reset the password token send via mail.
     """
-    authentication_classes = (ExpiringTokenAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    #authentication_classes = (ExpiringTokenAuthentication,)
+    permission_classes = (AllowAny,)
 
     @extend_schema(request=inline_serializer(
             name='CustomResetPasswordSerializer',
