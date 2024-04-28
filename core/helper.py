@@ -2,7 +2,7 @@ from drf_spectacular.utils import OpenApiParameter, OpenApiExample, inline_seria
 from drf_spectacular.types import OpenApiTypes
 from rest_framework import serializers
 from django.db import transaction
-from core.models import BaseUser
+from core.models import BaseUser, Demographics
 from django.contrib.auth.hashers import make_password
 from core.constants import DOCTOR_ADMIN,PATIENT_ADMIN
 from hashlib import sha1, sha256
@@ -122,7 +122,6 @@ def reset_password(request):
     :param request: {password}
     :return: {"success": True, "message": Return message}
     """
-    import pdb;pdb.set_trace()
     password = request.data.get("password")
     email = request.data.get('email')
     if password:
@@ -137,3 +136,32 @@ def reset_password(request):
         else :
             return {"success": True, "message": "Please try a new password"}
     return {"success": False, "message": "all the fields are required"}
+
+def demographics_update_create(request):
+    patient=BaseUser.objects.get(email=request.data['email'])
+    object,created = Demographics.objects.update_or_create(
+        patient=patient,
+        defaults=
+        {
+            'country' : request.data['email'],
+            'gender' : request.data['email'],
+            'dob' : request.data['email'],
+            'height' : request.data['email'],
+            'weight' : request.data['email'],
+            'sport' : request.data['email'],
+            'current_activity' : request.data['email'],
+            'date_of_injury' : request.data['email'],
+            'knee' : request.data['email'],
+            'mechanism_injury' : request.data['email'],
+            'other_injuries' : request.data['email'],
+            'injuries_same' : request.data['email'],
+            'injuries_other' : request.data['email'],
+            'reconstructions_same' : request.data['email'],
+            'reconstructions_other' : request.data['email'],
+            'planned_management' : request.data['email'],
+            'survey_date' : request.data['email'],
+            'doctor' : request.data['email'],
+            'doctors_history' : request.data['email'],
+            'status' : 'open'
+        }
+    )

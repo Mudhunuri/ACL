@@ -95,7 +95,6 @@ class ForgotPassword(APIView):
               required: true
         """
         email = request.data.get("email")
-        import pdb;pdb.set_trace()
         if email is not None:
             user = get_user_from_email(email)
             if user is not None:
