@@ -1,7 +1,7 @@
 from drf_spectacular.utils import OpenApiParameter, OpenApiExample, inline_serializer
-from drf_spectacular.types import OpenApiTypes
+from rest_framework.authtoken.models import Token
 from rest_framework import serializers
-from django.db import transaction
+from .authentication import expires_in, token_expire_handler
 from core.models import BaseUser, Demographics
 from django.contrib.auth.hashers import make_password
 from core.constants import DOCTOR_ADMIN,PATIENT_ADMIN
@@ -9,7 +9,7 @@ from hashlib import sha1, sha256
 import urllib.request, urllib.parse, urllib.error
 from rest_framework.authtoken.models import Token
 import base64
-
+from core.serializer import CustomAuthTokenSerializer
 
 # def get_user_from_email():
 #     adc_user = User.objects.filter(email=email)
@@ -89,6 +89,15 @@ def get_user_from_email(email):
         return user[0]
     return None
 
+def token_generator(data):
+    serializer=CustomAuthTokenSerializer(data=data)
+    serializer.is_valid(raise_exception=True)
+    user = serializer.validated_data['user']
+    token, created = Token.objects.get_or_create(user=user)
+    is_expired, token = token_expire_handler(token)
+    time_left = expires_in(token)
+    return {'token': token.key, 'token_expires_in': str(time_left)}
+
 def create_doctor_user(data):
     user, is_created = BaseUser.objects.get_or_create(email=data.get("email"))
     if is_created:
@@ -100,7 +109,8 @@ def create_doctor_user(data):
         user.password = make_password(data.get("password"))
         user.role = data.get('role')
         user.save()
-        return {"success": True, "data":{"user_id":user.pk}}
+        token_data=token_generator(data)
+        return {"success": True, "data":{"user_id":user.pk,**token_data}}
     return {"success": False, "message": "User Already Exsist"}
 
 def create_patient_user(data):
