@@ -4,6 +4,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework.authtoken.serializers import AuthTokenSerializer
 from rest_framework import serializers
 from django.contrib.auth.hashers import check_password
+from core.models import BaseUser
 
 
 class CustomAuthTokenSerializer(AuthTokenSerializer):
@@ -18,11 +19,6 @@ class CustomAuthTokenSerializer(AuthTokenSerializer):
         username = attrs.get('email')
         password = attrs.get('password')
         if username and password:
-            # check=False
-            # user = Doctor.objects.get(email=username)
-            # if check_password(password,user.password):
-            #     check=True
-            # if not check:
             user = authenticate(request=self.context.get('request'),
                                 username=username, password=password)
 
@@ -36,4 +32,13 @@ class CustomAuthTokenSerializer(AuthTokenSerializer):
         attrs['user'] = user
         return attrs
 
-
+class Doctorserializer(serializers.ModelSerializer):
+    email = serializers.ReadOnlyField()
+    first_name =serializers.ReadOnlyField()
+    last_name = serializers.ReadOnlyField()
+    experience = serializers.ReadOnlyField()
+    phone = serializers.ReadOnlyField()
+    degree = serializers.ReadOnlyField()
+    class Meta:
+        model = BaseUser
+        fields=('id','first_name','last_name','last_name','email','experience','phone','degree')

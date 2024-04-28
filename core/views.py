@@ -9,8 +9,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.serializers import CharField, EmailField
 from .authentication import expires_in, token_expire_handler, ExpiringTokenAuthentication
-from .constants import DOCTOR_ADMIN, PATIENT_ADMIN
-from .serializer import CustomAuthTokenSerializer
+from .constants import DOCTOR_ADMIN, PATIENT_ADMIN,Messages
+from .serializer import CustomAuthTokenSerializer,Doctorserializer
+from core.models import BaseUser
+from core.mixins import BaseApiMixin
 from .helper import reset_password_notification,create_doctor_user,create_patient_user, \
     get_user_from_email,reset_password
 
@@ -130,3 +132,17 @@ class ResetPassword(APIView):
         """
         response = reset_password(request)
         return Response(response)
+
+class ListofDoctors(APIView,BaseApiMixin):
+    permission_classes = (AllowAny,)
+    def get(self, request):
+        doctors_list=BaseUser.objects.filter(role=DOCTOR_ADMIN)
+        if doctors_list.exists():
+            seralizer=Doctorserializer(doctors_list,many=True)
+            return self.success_response({Messages.SUCCESS: True, Messages.DATA: seralizer.data, Messages.MESSAGE: Messages.DATA_IS_VALID})
+        return self.error_response({Messages.SUCCESS: False, Messages.DATA:[], Messages.MESSAGE: 'No Doctor data registered till now'})
+    
+# class DemographicsView(APIView,BaseApiMixin):
+#     permission_classes = (AllowAny,)
+#     def post(self,request):
+        
