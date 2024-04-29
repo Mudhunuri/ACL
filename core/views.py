@@ -3,18 +3,17 @@ import json
 from drf_spectacular.utils import extend_schema, inline_serializer
 from django.http import HttpResponse
 from rest_framework import renderers
-from rest_framework.authtoken.models import Token
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.db.models import Q
+from rest_framework.permissions import  AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.serializers import CharField, EmailField
-from .authentication import expires_in, token_expire_handler, ExpiringTokenAuthentication
-from .constants import DOCTOR_ADMIN, PATIENT_ADMIN,Messages
-from .serializer import CustomAuthTokenSerializer,Doctorserializer
-from core.models import BaseUser
+from .constants import DOCTOR_ADMIN, PATIENT_ADMIN,Messages,DoctorApproval
+from .serializer import Doctorserializer,DemographicsSerializer
+from core.models import BaseUser,Demographics
 from core.mixins import BaseApiMixin
 from .helper import reset_password_notification,create_doctor_user,create_patient_user, \
-    get_user_from_email,reset_password
+    get_user_from_email,reset_password, demographics_create, token_generator, edit_demographics
 
 # Create your views here.
 class ObtainAuthToken(APIView):
@@ -27,26 +26,19 @@ class ObtainAuthToken(APIView):
 
     """
     renderer_classes = (renderers.JSONRenderer,)
-    serializer_class = CustomAuthTokenSerializer
     permission_classes = (AllowAny,)
 
     def post(self, request, *args, **kwargs):
-
-        serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data['user']
-        token, created = Token.objects.get_or_create(user=user)
-        is_expired, token = token_expire_handler(token)
-        time_left = expires_in(token)
-
-        val = {'token': token.key, 'token_expires_in': str(time_left),'first_name': user.first_name, 'last_name': user.last_name}
-
-        if request.data['role'] == DOCTOR_ADMIN:
-            data = {"related_data":'welcome to doctor portal'}
-
-        elif request.data['role'] == PATIENT_ADMIN:
-            data ={"related_data": 'welcome to patient portal'}
-
+        data=request.data
+        data['username']=data['email']
+        token_data=token_generator(data)
+        val = {**token_data,'first_name': token_data['user'].first_name, 'last_name': token_data['user'].last_name}
+        user=val['user']
+        del val['user']
+        if user.role == DOCTOR_ADMIN:
+            data = {'id':user.id,'email':user.email,'role':user.role,'phone':user.phone,"related_data":'welcome to doctor portal'}
+        elif user.role == PATIENT_ADMIN:
+            data ={'id':user.id,'email':user.email,'role':user.role,'phone':user.phone,"related_data": 'welcome to patient portal'}
         else :
             data = HttpResponse(json.dumps(val),content_type='application/json')
             return data
@@ -55,11 +47,21 @@ class ObtainAuthToken(APIView):
 
 
 obtain_auth_token = ObtainAuthToken.as_view()
+
+class EditUser(APIView):
+    permission_classes = (AllowAny,)
+    def put(self,request):
+        user=BaseUser.objects.filter(email=request.data['email']).update(**request.data)
+        if user:
+            user=BaseUser.objects.get(email=request.data['email'])
+            data={'id':user.id,'email':user.email,'role':user.role,'phone':user.phone,'first_name':user.first_name,'last_name':user.last_name}
+            response = HttpResponse(json.dumps(dict(list(data.items()))), content_type = 'application/json')
+            return response
+        return Response({"success": False, "message": "User didn't got updated"})
         
 class Register(APIView):
     permission_classes = (AllowAny,)
     def post(self, request, *args, **kwargs):
-        
         try:
             #response = create_doctor_user(data=request.data)
             if  request.data['role'] == 'doctor':
@@ -141,7 +143,65 @@ class ListofDoctors(APIView,BaseApiMixin):
             return self.success_response({Messages.SUCCESS: True, Messages.DATA: seralizer.data, Messages.MESSAGE: Messages.DATA_IS_VALID})
         return self.error_response({Messages.SUCCESS: False, Messages.DATA:[], Messages.MESSAGE: 'No Doctor data registered till now'})
     
-# class DemographicsView(APIView,BaseApiMixin):
-#     permission_classes = (AllowAny,)
-#     def post(self,request):
-        
+class DemographicsView(APIView,BaseApiMixin):
+    permission_classes = (AllowAny,)
+    def post(self,request):
+        if request.data['draft']:
+            response=demographics_create(request)
+        elif not request.data['draft']:
+            if request.data.get('id',None):
+                response=edit_demographics(request)
+            else:
+                response=demographics_create(request)
+        return self.success_response({Messages.SUCCESS: True, Messages.DATA: response})
+
+class DemographicsGetView(APIView,BaseApiMixin):
+    permission_classes = (AllowAny,)
+    def get(self,request):
+        if request.data['role'] == PATIENT_ADMIN:
+            data=Demographics.objects.filter(patient__email=request.data['email'])
+        elif request.data['role'] == DOCTOR_ADMIN:
+            data=Demographics.objects.filter(Q(doctor__email=request.data['email'])|Q(doctor_history__contains={request.data['email']:DoctorApproval.CANCELLED})| \
+                                             Q(doctor_history__contains={request.data['email']:DoctorApproval.DECLINE}))
+        serializer = DemographicsSerializer(data,many=True)
+        return self.success_response({Messages.SUCCESS: True, Messages.DATA: serializer.data, Messages.MESSAGE: Messages.DATA_IS_VALID})
+
+class DemographicsEditView(APIView,BaseApiMixin):
+    permission_classes = (AllowAny,)
+    def put(self,request):
+        updated=edit_demographics(request)
+        if updated:
+            return self.success_response({Messages.SUCCESS: True,Messages.MESSAGE: 'updated successfully'})
+        return self.error_response({Messages.SUCCESS: False,Messages.MESSAGE: 'couldnt update the data'})
+
+class DemographicsDoctorView(APIView,BaseApiMixin):
+    permission_classes = (AllowAny,)
+    def put(self,request):
+        history={}
+        obj=Demographics.objects.get(id=request.data['id'])
+        email,history=obj.doctor.email,obj.doctors_history
+        if request.data['accept']:
+            history[email]=DoctorApproval.INPROGRESS
+            Demographics.objects.filter(id=request.data['id']).update(doctors_history=history,status=DoctorApproval.INPROGRESS)
+        else:
+            history[email]=DoctorApproval.DECLINE
+            Demographics.objects.filter(id=request.data['id']).update(doctors_history=history,status=DoctorApproval.INPROGRESS)
+        return self.success_response({Messages.SUCCESS: True,Messages.MESSAGE: 'updated successfully'})
+
+
+class DemographicsDoctorChange(APIView,BaseApiMixin):
+    permission_classes = (AllowAny,)
+    def put(self,request):
+        doctor=request.data['doctor_email']
+        obj=Demographics.objects.get(id=request.data['id'])
+        email,history=obj.doctor.email,obj.doctors_history,obj.doctor
+        history[email]=DoctorApproval.CANCELLED
+        if email!=doctor:
+            new_history={doctor:DoctorApproval.OPEN,**history}
+            updated=Demographics.objects.filter(id=request.data['id']).update(doctors_history=new_history,doctor=BaseUser.objects.get(email=doctor))
+            if updated:
+                return self.success_response({Messages.SUCCESS: True,Messages.MESSAGE: 'updated successfully'})
+        else:
+            return self.error_response({Messages.SUCCESS: False,Messages.MESSAGE: 'Sending request to same doctor'})
+
+

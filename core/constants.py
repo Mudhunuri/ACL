@@ -7,3 +7,9 @@ class Messages:
     MESSAGE = "message"
     ERROR = "errors"
     DATA_IS_VALID = "Data is valid"
+class DoctorApproval:
+    ACCEPT = 'accepted'
+    OPEN = 'open'
+    DECLINE = 'declined'
+    INPROGRESS = 'inprogress'
+    CANCELLED = 'cancelled'
