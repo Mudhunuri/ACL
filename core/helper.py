@@ -109,9 +109,10 @@ def create_doctor_user(data):
         user.password = make_password(data.get("password"))
         user.role = data.get('role')
         user.save()
+        data['username']=data['email']
         token_data=token_generator(data)
         del token_data['user']
-        return {"success": True, "data":{"user_id":user.pk,'first_name': user.first_name, 'last_name': user.last_name, \
+        return {"success": True, "data":{"id":user.pk,'first_name': user.first_name, 'last_name': user.last_name, \
                                          'email':user.email,'role':user.role,'phone':user.phone,**token_data}}
     return {"success": False, "message": "User Already Exsist"}
 
@@ -119,8 +120,8 @@ def create_doctor_user(data):
 def create_patient_user(data):
     user, is_created = BaseUser.objects.get_or_create(email=data.get("email"))
     if is_created:
-        user.first_name = data.get("firstname")
-        user.last_name = data.get("lastname")
+        user.first_name = data.get("first_name")
+        user.last_name = data.get("last_name")
         user.phone = data.get("phone")
         user.password = make_password(data.get("password"))
         user.role = data.get('role')
@@ -163,10 +164,10 @@ def edit_demographics(request):
             return "demographics data got updated"
     
 def demographics_create(request):
-    patient=BaseUser.objects.get(email=request.data['email'])
-    if request.data.get('doctor_email',None):
-        doctors_history={request.data['doctor_email']:DoctorApproval.OPEN}
-        doctor_obj=BaseUser.objects.get(email=request.data['doctor_email']) 
+    patient=BaseUser.objects.get(email=request.data['patient'])
+    if request.data.get('doctor',None):
+        doctors_history={request.data['doctor']:DoctorApproval.OPEN}
+        doctor_obj=BaseUser.objects.get(email=request.data['doctor']) 
     else:
         doctors_history=doctor_obj=None
     object,created = Demographics.objects.create(
