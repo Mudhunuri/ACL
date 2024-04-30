@@ -147,7 +147,10 @@ class DemographicsView(APIView,BaseApiMixin):
     permission_classes = (AllowAny,)
     def post(self,request):
         if request.data['draft']:
-            response=demographics_create(request)
+            if not request.data.get('id',None):
+                response=demographics_create(request)
+            if request.data.get('id',None):
+                response=edit_demographics(request)
         elif not request.data['draft']:
             if request.data.get('id',None):
                 response=edit_demographics(request)
@@ -158,11 +161,11 @@ class DemographicsView(APIView,BaseApiMixin):
 class DemographicsGetView(APIView,BaseApiMixin):
     permission_classes = (AllowAny,)
     def get(self,request):
-        if request.data['role'] == PATIENT_ADMIN:
-            data=Demographics.objects.filter(patient__email=request.data['email'])
-        elif request.data['role'] == DOCTOR_ADMIN:
-            data=Demographics.objects.filter(Q(doctor__email=request.data['email'])|Q(doctor_history__contains={request.data['email']:DoctorApproval.CANCELLED})| \
-                                             Q(doctor_history__contains={request.data['email']:DoctorApproval.DECLINE}))
+        if request.GET.get('role') == PATIENT_ADMIN:
+            data=Demographics.objects.filter(patient__email=request.GET.get('email'))
+        elif request.GET.get('role') == DOCTOR_ADMIN:
+            data=Demographics.objects.filter(Q(doctor__email=request.GET.get('email'))|Q(doctors_history__contains={request.GET.get('email'):DoctorApproval.CANCELLED})| \
+                                             Q(doctors_history__contains={request.GET.get('email'):DoctorApproval.DECLINE}))
         serializer = DemographicsSerializer(data,many=True)
         return self.success_response({Messages.SUCCESS: True, Messages.DATA: serializer.data, Messages.MESSAGE: Messages.DATA_IS_VALID})
 

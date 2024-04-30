@@ -35,7 +35,7 @@ class DemographicsSerializer(serializers.ModelSerializer):
     reconstructions_other = serializers.ReadOnlyField()
     planned_management = serializers.ReadOnlyField()
     survey_date =serializers.ReadOnlyField()
-    patient_email =serializers.ReadOnlyField()
+    patient_email =serializers.ReadOnlyField(source='patient.email')
     patient_name = serializers.SerializerMethodField()
     doctor_email =serializers.ReadOnlyField(source='doctor.email')
     doctor_license = serializers.ReadOnlyField(source='doctor.license')
@@ -45,7 +45,7 @@ class DemographicsSerializer(serializers.ModelSerializer):
     percentage = serializers.ReadOnlyField()
     draft = serializers.ReadOnlyField()
 
-    def get_patient_name(obj):
+    def get_patient_name(self,obj):
         return obj.patient.first_name+' '+obj.patient.last_name
 
     class Meta:

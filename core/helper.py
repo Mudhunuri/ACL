@@ -155,10 +155,12 @@ def reset_password(request):
 
 def edit_demographics(request):
     editable=request.data
-    if Demographics.objects.get(id=request.data['id']).doctor_status == DoctorApproval.OPEN:
+    if Demographics.objects.get(id=request.data['id']).status == DoctorApproval.OPEN:
         if editable.get('doctor_email',None):
             updated=Demographics.objects.filter(id=request.data['id']).update(doctor=BaseUser.objects.get(email=editable['doctor_email']),doctors_history={editable['doctor_email']:DoctorApproval.OPEN})
             del editable['doctor_email']
+        if editable.get('status',None):
+            updated=Demographics.objects.filter(id=request.data['id']).update(status=DoctorApproval.INPROGRESS)
         updated=Demographics.objects.filter(id=request.data['id']).update(**editable)
         if updated:
             return "demographics data got updated"
@@ -170,8 +172,7 @@ def demographics_create(request):
         doctor_obj=BaseUser.objects.get(email=request.data['doctor']) 
     else:
         doctors_history=doctor_obj=None
-    object,created = Demographics.objects.create(
-        {
+    data={
             'country' : request.data.get('country',None),
             'gender' : request.data.get('gender',None),
             'dob' : request.data.get('dob',None),
@@ -195,9 +196,11 @@ def demographics_create(request):
             'percentage' : request.data.get('percentage',None),
             'draft':request.data.get('draft',False),
         }
-    )
+    created = Demographics.objects.create(**data)
     if created:
-        send_email_doctor(patient,request.data['doctor_email'])
+        if doctor_obj and not request.data.get('draft',False):
+            send_email_doctor(patient,doctor_obj.email)
+            return "patient survey created and sent mail to doctor"
         return "patient survey created"
 
 def send_email_doctor(patient,doctor):
