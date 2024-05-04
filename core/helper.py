@@ -115,7 +115,7 @@ def create_doctor_user(data):
         token_data=token_generator(data)
         del token_data['user']
         return {"success": True, "data":{"id":user.pk,'first_name': user.first_name, 'last_name': user.last_name, \
-                                         'email':user.email,'role':user.role,'phone':user.phone,**token_data}}
+                                         'email':user.email,'role':user.role,'phone':user.phone,'experience':user.experience,'license':user.license,**token_data}}
     return {"success": False, "message": "User Already Exsist"}
 
 
@@ -217,7 +217,7 @@ def demographics_create(request):
             'weight' : request.data.get('weight',0),
             'sport' : request.data.get('sport',None),
             'current_activity' : request.data.get('current_activity',None),
-            'date_of_injury' : request.data.get('date_of_injury',None),
+            'date_of_injury' : request.data.get('date_of_injury',''),
             'knee' : request.data.get('knee',None),
             'mechanism_injury' : request.data.get('mechanism_injury',None),
             'other_injuries' : request.data.get('other_injuries',None),
@@ -226,7 +226,7 @@ def demographics_create(request):
             'reconstructions_same' : request.data.get('reconstructions_same',0),
             'reconstructions_other' : request.data.get('reconstructions_other',0),
             'planned_management' : request.data.get('planned_management',None),
-            'survey_date' : request.data.get('survey_date',None),
+            'survey_date' : request.data.get('survey_date',''),
             'doctor' :  doctor_obj,
             'doctors_history' : doctors_history,
             'patient': patient,
