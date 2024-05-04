@@ -165,7 +165,7 @@ def edit_demographics(request):
             updated=Demographics.objects.filter(id=request.data['id']).update(status=DoctorApproval.INPROGRESS)
         if editable.get('percentage'):
             if editable.get('percentage') == 100:
-                editable['current_phase'] == Phases.DEMOGRAPHICS
+                editable['current_phase'] == Phases.PREOPS
         updated=Demographics.objects.filter(id=request.data['id']).update(**editable)
         if updated:
             return "demographics data got updated"
@@ -175,7 +175,7 @@ def edit_preops(request):
     if editable.get('percentage'):
         demographics_obj=Demographics.objects.filter(id=editable.get('demographics_id'))
         if editable.get('percentage') == 100:
-            demographics_obj.update(current_phase=Phases.PREOPS)
+            demographics_obj.update(current_phase=Phases.PHASE1)
     updated=PreOp.objects.filter(demographics__id=editable.get('demographics_id')).update(**editable)
     if updated:
         return "Pre-Op data got updated"
@@ -185,7 +185,7 @@ def edit_phase1(request):
     if editable.get('percentage'):
         demographics_obj=Demographics.objects.filter(id=editable.get('demographics_id'))
         if editable.get('percentage') == 100:
-            demographics_obj.update(current_phase=Phases.PHASE1)
+            demographics_obj.update(current_phase=Phases.PHASE2)
     updated=Phase1.objects.filter(demographics__id=editable.get('demographics_id')).update(**editable)
     if updated:
         return "Phase1 data got updated"
@@ -195,7 +195,7 @@ def edit_phase2(request):
     if editable.get('percentage'):
         demographics_obj=Demographics.objects.filter(id=editable.get('demographics_id'))
         if editable.get('percentage') == 100:
-            demographics_obj.update(current_phase=Phases.PHASE2)
+            demographics_obj.update(current_phase=Phases.PHASE3)
     updated=Phase2.objects.filter(demographics__id=editable.get('demographics_id')).update(**editable)
     if updated:
         return "Phase2 data got updated"
@@ -208,7 +208,7 @@ def demographics_create(request):
     else:
         doctors_history=doctor_obj=None
     if request.data.get('percentage') == 100:
-        current_phase = Phases.DEMOGRAPHICS
+        current_phase = Phases.PREOPS
     data={
             'country' : request.data.get('country',None),
             'gender' : request.data.get('gender',None),
@@ -232,7 +232,7 @@ def demographics_create(request):
             'patient': patient,
             'percentage' : request.data.get('percentage',0),
             'draft':request.data.get('draft',False),
-            'current_phase' : current_phase
+            'current_phase' : current_phase if current_phase else Phases.DEMOGRAPHICS
         }
     created = Demographics.objects.create(**data)
     if created:
@@ -244,7 +244,7 @@ def demographics_create(request):
 def create_preop(request):
     demographics_obj=Demographics.objects.filter(id=request.data.get('demographics_id'))
     if request.data.get('percentage') == 100:
-        current_phase = Phases.PREOPS
+        current_phase = Phases.PHASE1
         demographics_obj.update(current_phase=current_phase)
     data={
         "demographics":demographics_obj[0],
@@ -268,7 +268,7 @@ def create_preop(request):
 def create_phase1(request):
     demographics_obj=Demographics.objects.filter(id=request.data.get('demographics_id'))
     if request.data.get('percentage') == 100:
-        current_phase = Phases.PHASE1
+        current_phase = Phases.PHASE2
         demographics_obj.update(current_phase=current_phase)
     data={
         "demographics":demographics_obj[0],
@@ -289,7 +289,7 @@ def create_phase1(request):
 def create_phase2(request):
     demographics_obj=Demographics.objects.filter(id=request.data.get('demographics_id'))
     if request.data.get('percentage') == 100:
-        current_phase = Phases.PHASE2
+        current_phase = Phases.PHASE3
         demographics_obj.update(current_phase=current_phase)
     data={
         "demographics":demographics_obj[0],

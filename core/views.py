@@ -187,11 +187,11 @@ class DemographicsView(APIView,BaseApiMixin):
 class GetCurrentPhase(APIView,BaseApiMixin):
     permission_classes = (AllowAny,)
     def get(self,request):
-        if request.GET.get('role') == PATIENT_ADMIN:
-            data=Demographics.objects.filter(patient__email=request.GET.get('email'))
-        elif request.GET.get('role') == DOCTOR_ADMIN:
-            data=Demographics.objects.filter(Q(doctor__email=request.GET.get('email'))|Q(doctors_history__contains={request.GET.get('email'):DoctorApproval.CANCELLED})| \
-                                             Q(doctors_history__contains={request.GET.get('email'):DoctorApproval.DECLINE}))
+        if request.data.get('role') == PATIENT_ADMIN:
+            data=Demographics.objects.filter(patient__email=request.data.get('email'))
+        elif request.data.get('role') == DOCTOR_ADMIN:
+            data=Demographics.objects.filter(Q(doctor__email=request.data.get('email'))|Q(doctors_history__contains={request.data.get('email'):DoctorApproval.CANCELLED})| \
+                                             Q(doctors_history__contains={request.data.get('email'):DoctorApproval.DECLINE}))
         serializer = DemographicsSerializer(data,many=True)
         return self.success_response({Messages.SUCCESS: True, Messages.DATA: serializer.data, Messages.MESSAGE: Messages.DATA_IS_VALID})
 
@@ -199,12 +199,12 @@ class GetPhases(APIView,BaseApiMixin):
     permission_classes = (AllowAny,)
     def get(self,request):
 
-        if request.GET.get('role') == PATIENT_ADMIN:
-            obj=Demographics.objects.filter(patient__email=request.GET.get('email'))
+        if request.data.get('role') == PATIENT_ADMIN:
+            obj=Demographics.objects.filter(patient__email=request.data.get('email'))
             serializer = DemographicsSerializer(data,many=True)
             data=serializer.data
-        elif request.GET.get('role') == DOCTOR_ADMIN:
-            obj=Demographics.objects.filter(id=request.GET.get('demographics_id'))
+        elif request.data.get('role') == DOCTOR_ADMIN:
+            obj=Demographics.objects.filter(id=request.data.get('demographics_id'))
             data = get_phases_doctor(obj)
         return self.success_response({Messages.SUCCESS: True, Messages.DATA: data, Messages.MESSAGE: Messages.DATA_IS_VALID})
 
