@@ -2,9 +2,9 @@ from drf_spectacular.utils import OpenApiParameter, OpenApiExample, inline_seria
 from rest_framework.authtoken.models import Token
 from rest_framework import serializers
 from .authentication import expires_in, token_expire_handler
-from core.models import BaseUser, Demographics
+from core.models import BaseUser, Demographics,PreOp,Phase1,Phase2
 from django.contrib.auth.hashers import make_password
-from core.constants import DOCTOR_ADMIN,PATIENT_ADMIN,DoctorApproval
+from core.constants import DOCTOR_ADMIN,PATIENT_ADMIN,DoctorApproval,Phases
 from hashlib import sha1, sha256
 import urllib.request, urllib.parse, urllib.error
 from rest_framework.authtoken.models import Token
@@ -14,6 +14,7 @@ from latrobe.settings import EMAIL_HOST_USER
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+from .serializer import DemographicsSerializer,PreOpSerializer,PhaseOneSerializer,PhaseTwoSerializer
 
 # def get_user_from_email():
 #     adc_user = User.objects.filter(email=email)
@@ -108,6 +109,7 @@ def create_doctor_user(data):
         user.degree =data.get('degree',None)
         user.password = make_password(data.get("password"))
         user.role = data.get('role')
+        user.license = data.get('license')
         user.save()
         data['username']=data['email']
         token_data=token_generator(data)
@@ -161,9 +163,42 @@ def edit_demographics(request):
             del editable['doctor_email']
         if editable.get('status',None):
             updated=Demographics.objects.filter(id=request.data['id']).update(status=DoctorApproval.INPROGRESS)
+        if editable.get('percentage'):
+            if editable.get('percentage') == 100:
+                editable['current_phase'] == Phases.DEMOGRAPHICS
         updated=Demographics.objects.filter(id=request.data['id']).update(**editable)
         if updated:
             return "demographics data got updated"
+
+def edit_preops(request):
+    editable=request.data
+    if editable.get('percentage'):
+        demographics_obj=Demographics.objects.filter(id=editable.get('demographics_id'))
+        if editable.get('percentage') == 100:
+            demographics_obj.update(current_phase=Phases.PREOPS)
+    updated=PreOp.objects.filter(demographics__id=editable.get('demographics_id')).update(**editable)
+    if updated:
+        return "Pre-Op data got updated"
+
+def edit_phase1(request):
+    editable=request.data
+    if editable.get('percentage'):
+        demographics_obj=Demographics.objects.filter(id=editable.get('demographics_id'))
+        if editable.get('percentage') == 100:
+            demographics_obj.update(current_phase=Phases.PHASE1)
+    updated=Phase1.objects.filter(demographics__id=editable.get('demographics_id')).update(**editable)
+    if updated:
+        return "Phase1 data got updated"
+
+def edit_phase2(request):
+    editable=request.data
+    if editable.get('percentage'):
+        demographics_obj=Demographics.objects.filter(id=editable.get('demographics_id'))
+        if editable.get('percentage') == 100:
+            demographics_obj.update(current_phase=Phases.PHASE2)
+    updated=Phase2.objects.filter(demographics__id=editable.get('demographics_id')).update(**editable)
+    if updated:
+        return "Phase2 data got updated"
     
 def demographics_create(request):
     patient=BaseUser.objects.get(email=request.data['patient'])
@@ -172,29 +207,32 @@ def demographics_create(request):
         doctor_obj=BaseUser.objects.get(email=request.data['doctor']) 
     else:
         doctors_history=doctor_obj=None
+    if request.data.get('percentage') == 100:
+        current_phase = Phases.DEMOGRAPHICS
     data={
             'country' : request.data.get('country',None),
             'gender' : request.data.get('gender',None),
-            'dob' : request.data.get('dob',None),
-            'height' : request.data.get('height',None),
-            'weight' : request.data.get('weight',None),
+            'dob' : request.data.get('dob',''),
+            'height' : request.data.get('height',0),
+            'weight' : request.data.get('weight',0),
             'sport' : request.data.get('sport',None),
             'current_activity' : request.data.get('current_activity',None),
             'date_of_injury' : request.data.get('date_of_injury',None),
             'knee' : request.data.get('knee',None),
             'mechanism_injury' : request.data.get('mechanism_injury',None),
             'other_injuries' : request.data.get('other_injuries',None),
-            'injuries_same' : request.data.get('injuries_same',None),
-            'injuries_other' : request.data.get('injuries_other',None),
-            'reconstructions_same' : request.data.get('reconstructions_same',None),
-            'reconstructions_other' : request.data.get('reconstructions_other',None),
+            'injuries_same' : request.data.get('injuries_same',0),
+            'injuries_other' : request.data.get('injuries_other',0),
+            'reconstructions_same' : request.data.get('reconstructions_same',0),
+            'reconstructions_other' : request.data.get('reconstructions_other',0),
             'planned_management' : request.data.get('planned_management',None),
             'survey_date' : request.data.get('survey_date',None),
             'doctor' :  doctor_obj,
             'doctors_history' : doctors_history,
             'patient': patient,
-            'percentage' : request.data.get('percentage',None),
+            'percentage' : request.data.get('percentage',0),
             'draft':request.data.get('draft',False),
+            'current_phase' : current_phase
         }
     created = Demographics.objects.create(**data)
     if created:
@@ -202,6 +240,134 @@ def demographics_create(request):
             send_email_doctor(patient,doctor_obj.email)
             return "patient survey created and sent mail to doctor"
         return "patient survey created"
+
+def create_preop(request):
+    demographics_obj=Demographics.objects.filter(id=request.data.get('demographics_id'))
+    if request.data.get('percentage') == 100:
+        current_phase = Phases.PREOPS
+        demographics_obj.update(current_phase=current_phase)
+    data={
+        "demographics":demographics_obj[0],
+        "date":request.data.get('date',''),
+        "passive_extension":request.data.get('passive_extension',0),
+        "passive_flexion":request.data.get('passive_flexion',0),
+        "swelling": request.data.get('swelling',None),
+        "dynamometer_affected":request.data.get('dynamometer_affected',0),
+        "dynamometer_non_affected":request.data.get('dynamometer_non_affected',0),
+        "dynamometer_symmetry":request.data.get('dynamometer_symmetry',0),
+        "hop_trial_1":request.data.get('hop_trial_1',0),
+        "hop_trial_2":request.data.get('hop_trial_2',0),
+        "hop_symmetry":request.data.get('hop_symmetry',0),
+        "percentage":request.data.get('percentage',0),
+        "draft":request.data.get('draft'),
+    }
+    created = PreOp.objects.create(**data)
+    if created:
+        return "Pre-Op data got created"
+
+def create_phase1(request):
+    demographics_obj=Demographics.objects.filter(id=request.data.get('demographics_id'))
+    if request.data.get('percentage') == 100:
+        current_phase = Phases.PHASE1
+        demographics_obj.update(current_phase=current_phase)
+    data={
+        "demographics":demographics_obj[0],
+        "date":request.data.get('date',''),
+        "date_of_surgery":request.data.get('date_of_surgery',''),
+        "percentage":request.data.get('percentage',0),
+        "draft":request.data.get('draft'),
+        "graft":request.data.get('graft',None),
+        "passive_extension":request.data.get('passive_extension',0),
+        "passive_flexion":request.data.get('passive_flexion',0),
+        "swelling": request.data.get('swelling',None),
+        "quads":request.data.get('quads',0),
+    }
+    created = Phase1.objects.create(**data)
+    if created:
+        return "Phase1 data got created"
+
+def create_phase2(request):
+    demographics_obj=Demographics.objects.filter(id=request.data.get('demographics_id'))
+    if request.data.get('percentage') == 100:
+        current_phase = Phases.PHASE2
+        demographics_obj.update(current_phase=current_phase)
+    data={
+        "demographics":demographics_obj[0],
+        "percentage":request.data.get('percentage',0),
+        "draft":request.data.get('draft'),
+        "date":request.data.get('date',''),
+        "prone_hang":request.data.get('prone_hang',0),
+        "passive_flexion":request.data.get('passive_flexion',0),
+        "swelling": request.data.get('swelling',None),
+        "functional_alignment": request.data.get('functional_alignment',None),
+        "bridge_affected":request.data.get('bridge_affected',0),
+        "bridge_non_affected":request.data.get('bridge_non_affected',0),
+        "bridge_hurdle":request.data.get('bridge_hurdle',None),
+        "bridge_symmetry":request.data.get('bridge_symmetry',0),
+        "calf_affected":request.data.get('bridge_affected',0),
+        "calf_non_affected":request.data.get('bridge_non_affected',0),
+        "calf_hurdle":request.data.get('bridge_hurdle',None),
+        "calf_symmetry":request.data.get('bridge_symmetry',0),
+        "endurance_affected":request.data.get('bridge_affected',0),
+        "endurance_non_affected":request.data.get('bridge_non_affected',0),
+        "endurance_hurdle":request.data.get('bridge_hurdle',None),
+        "endurance_symmetry":request.data.get('bridge_symmetry',0),
+        "leg_rise_affected":request.data.get('bridge_affected',0),
+        "leg_rise_non_affected":request.data.get('bridge_non_affected',0),
+        "leg_rise_hurdle":request.data.get('bridge_hurdle',None),
+        "leg_rise_symmetry":request.data.get('bridge_symmetry',0),
+        "unipedal_open_affected":request.data.get('unipedal_open_affected',0),
+        "unipedal_closed_affected":request.data.get('unipedal_closed_affected',0),
+        "unipedal_open_non_affected":request.data.get('unipedal_open_non_affected',0),
+        "unipedal_closed_non_affected":request.data.get('unipedal_closed_non_affected',0),
+        "unipedal_affected_hurdel":request.data.get('unipedal_affected_hurdel',None),
+        "unipedal_affected_non_hurdel":request.data.get('unipedal_non_affected_hurdel',None),
+        "weight":request.data.get('weight',0),
+        "leg_press_affected":request.data.get('leg_press_affected',0),
+        "leg_press_affected_weight":request.data.get('leg_press_affected_weight',0),
+        "leg_press_non_affected":request.data.get('leg_press_non_affected',0),
+        "leg_press_non_affected_weight":request.data.get('leg_press_non_affected_weight',0),
+        "squat":request.data.get('squat',0),
+        "squat_weight":request.data.get('squat_weight',0),
+    }
+    created = Phase2.objects.create(**data)
+    if created:
+        return "Phase2 record got created"
+
+def get_phases_doctor(data):
+    current_phase = data[0].current_phase
+    serializer_data = {}
+    if current_phase == Phases.DEMOGRAPHICS:
+            demographics_serializer = DemographicsSerializer(data,many=True)
+            serializer_data['demographics']=demographics_serializer[0]
+    if current_phase == Phases.PREOPS:
+        demographics_serializer = DemographicsSerializer(data,many=True)
+        data = PreOp.objects.filter(demographics_id=data[0].id)
+        preop_serializer = PreOpSerializer(data,many=True)
+        serializer_data['demographics']=demographics_serializer[0]
+        serializer_data['preop']=preop_serializer[0]
+    if current_phase == Phases.PHASE1:
+        demographics_serializer = DemographicsSerializer(data,many=True)
+        preop_data = PreOp.objects.filter(demographics_id=data[0].id)
+        preop_serializer = PreOpSerializer(preop_data,many=True)
+        phase1_data = Phase1.objects.filter(demographics_id=data[0].id)
+        phase_one_serializer = PhaseOneSerializer(phase1_data,many=True)
+        serializer_data['demographics']=demographics_serializer[0]
+        serializer_data['preop']=preop_serializer[0]
+        serializer_data['phase1']=phase_one_serializer[0]
+    if current_phase == Phases.PHASE2:
+        demographics_serializer = DemographicsSerializer(data,many=True)
+        preop_data = PreOp.objects.filter(demographics_id=data[0].id)
+        preop_serializer = PreOpSerializer(preop_data,many=True)
+        phase1_data = Phase1.objects.filter(demographics_id=data[0].id)
+        phase_one_serializer = PhaseOneSerializer(phase1_data,many=True)
+        phase2_data = Phase2.objects.filter(demographics_id=data[0].id)
+        phase_two_serializer = PhaseTwoSerializer(phase2_data,many=True)
+        serializer_data['demographics']=demographics_serializer[0]
+        serializer_data['preop']=preop_serializer[0]
+        serializer_data['phase1']=phase_one_serializer[0]
+        serializer_data['phase2']=phase_two_serializer[0]
+    return serializer_data
 
 def send_email_doctor(patient,doctor):
     login_link = "http://localhost:3000/login/"

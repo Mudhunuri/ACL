@@ -13,3 +13,10 @@ class DoctorApproval:
     DECLINE = 'declined'
     INPROGRESS = 'inprogress'
     CANCELLED = 'cancelled'
+class Phases:
+    DEMOGRAPHICS = 'Demographics'
+    PREOPS = 'Pre-Op'
+    PHASE1 = 'Phase 1'
+    PHASE2 = 'Phase 2'
+    PHASE3 = 'Phase 3'
+    PHASE4 = 'Phase 4'

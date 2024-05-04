@@ -8,12 +8,11 @@ from rest_framework.permissions import  AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.serializers import CharField, EmailField
-from .constants import DOCTOR_ADMIN, PATIENT_ADMIN,Messages,DoctorApproval
-from .serializer import Doctorserializer,DemographicsSerializer
+from .constants import DOCTOR_ADMIN, PATIENT_ADMIN,Messages,DoctorApproval,Phases
+from .serializer import Doctorserializer,DemographicsSerializer,PreOpSerializer,PhaseOneSerializer,PhaseTwoSerializer
 from core.models import BaseUser,Demographics
 from core.mixins import BaseApiMixin
-from .helper import reset_password_notification,create_doctor_user,create_patient_user, \
-    get_user_from_email,reset_password, demographics_create, token_generator, edit_demographics
+from .helper import *
 
 # Create your views here.
 class ObtainAuthToken(APIView):
@@ -36,7 +35,7 @@ class ObtainAuthToken(APIView):
         user=val['user']
         del val['user']
         if user.role == DOCTOR_ADMIN:
-            data = {'id':user.id,'email':user.email,'role':user.role,'phone':user.phone,"related_data":'welcome to doctor portal'}
+            data = {'id':user.id,'email':user.email,'role':user.role,'phone':user.phone,'experience':user.experience,'license':user.license,"related_data":'welcome to doctor portal'}
         elif user.role == PATIENT_ADMIN:
             data ={'id':user.id,'email':user.email,'role':user.role,'phone':user.phone,"related_data": 'welcome to patient portal'}
         else :
@@ -54,7 +53,10 @@ class EditUser(APIView):
         user=BaseUser.objects.filter(email=request.data['email']).update(**request.data)
         if user:
             user=BaseUser.objects.get(email=request.data['email'])
-            data={'id':user.id,'email':user.email,'role':user.role,'phone':user.phone,'first_name':user.first_name,'last_name':user.last_name}
+            if user.role == PATIENT_ADMIN:
+                data={'id':user.id,'email':user.email,'role':user.role,'phone':user.phone,'first_name':user.first_name,'last_name':user.last_name}
+            elif user.role == DOCTOR_ADMIN:
+                 data={'id':user.id,'email':user.email,'role':user.role,'phone':user.phone,'first_name':user.first_name,'last_name':user.last_name, 'experience':user.experience,'license':user.license}
             response = HttpResponse(json.dumps(dict(list(data.items()))), content_type = 'application/json')
             return response
         return Response({"success": False, "message": "User didn't got updated"})
@@ -142,23 +144,47 @@ class ListofDoctors(APIView,BaseApiMixin):
             seralizer=Doctorserializer(doctors_list,many=True)
             return self.success_response({Messages.SUCCESS: True, Messages.DATA: seralizer.data, Messages.MESSAGE: Messages.DATA_IS_VALID})
         return self.error_response({Messages.SUCCESS: False, Messages.DATA:[], Messages.MESSAGE: 'No Doctor data registered till now'})
-    
+
 class DemographicsView(APIView,BaseApiMixin):
     permission_classes = (AllowAny,)
     def post(self,request):
         if request.data['draft']:
             if not request.data.get('id',None):
-                response=demographics_create(request)
+                response=self.create_record(request)
             if request.data.get('id',None):
-                response=edit_demographics(request)
+                response=self.edit_record(request)
         elif not request.data['draft']:
             if request.data.get('id',None):
-                response=edit_demographics(request)
+                response=self.edit_record(request)
             else:
-                response=demographics_create(request)
+                response=self.create_record(request)
         return self.success_response({Messages.SUCCESS: True, Messages.DATA: response})
+    
+    def create_record(self,request): 
+        response = ''
+        if request.data.get('phase') == Phases.DEMOGRAPHICS:
+            response=demographics_create(request)
+        elif request.data.get('phase') == Phases.PREOPS:
+            response=create_preop(request)
+        elif request.data.get('phase') == Phases.PHASE1:
+            response=create_phase1(request)
+        elif request.data.get('phase') == Phases.PHASE2:
+            response=create_phase2(request)
+        return response
+    
+    def edit_record(self,request):
+        response=''
+        if request.data.get('phase') == Phases.DEMOGRAPHICS:
+            response=edit_demographics(request)
+        elif request.data.get('phase') == Phases.PREOPS:
+            response=edit_preops(request)
+        elif request.data.get('phase') == Phases.PHASE1:
+            response=edit_phase1(request)
+        elif request.data.get('phase') == Phases.PHASE2:
+            response=edit_phase2(request)
+        return response
 
-class DemographicsGetView(APIView,BaseApiMixin):
+class GetCurrentPhase(APIView,BaseApiMixin):
     permission_classes = (AllowAny,)
     def get(self,request):
         if request.GET.get('role') == PATIENT_ADMIN:
@@ -168,6 +194,19 @@ class DemographicsGetView(APIView,BaseApiMixin):
                                              Q(doctors_history__contains={request.GET.get('email'):DoctorApproval.DECLINE}))
         serializer = DemographicsSerializer(data,many=True)
         return self.success_response({Messages.SUCCESS: True, Messages.DATA: serializer.data, Messages.MESSAGE: Messages.DATA_IS_VALID})
+
+class GetPhases(APIView,BaseApiMixin):
+    permission_classes = (AllowAny,)
+    def get(self,request):
+
+        if request.GET.get('role') == PATIENT_ADMIN:
+            obj=Demographics.objects.filter(patient__email=request.GET.get('email'))
+            serializer = DemographicsSerializer(data,many=True)
+            data=serializer.data
+        elif request.GET.get('role') == DOCTOR_ADMIN:
+            obj=Demographics.objects.filter(id=request.GET.get('demographics_id'))
+            data = get_phases_doctor(obj)
+        return self.success_response({Messages.SUCCESS: True, Messages.DATA: data, Messages.MESSAGE: Messages.DATA_IS_VALID})
 
 class DemographicsEditView(APIView,BaseApiMixin):
     permission_classes = (AllowAny,)
@@ -188,7 +227,7 @@ class DemographicsDoctorView(APIView,BaseApiMixin):
             Demographics.objects.filter(id=request.data['id']).update(doctors_history=history,status=DoctorApproval.INPROGRESS)
         else:
             history[email]=DoctorApproval.DECLINE
-            Demographics.objects.filter(id=request.data['id']).update(doctors_history=history,status=DoctorApproval.INPROGRESS)
+            Demographics.objects.filter(id=request.data['id']).update(doctors_history=history,status=DoctorApproval.DECLINE)
         return self.success_response({Messages.SUCCESS: True,Messages.MESSAGE: 'updated successfully'})
 
 

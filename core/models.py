@@ -4,7 +4,7 @@ from core.manager import ActiveUserManager
 from django.contrib.auth.models import AbstractBaseUser
 from django.db import models
 from django.db.models import JSONField
-from core.constants import DoctorApproval
+from core.constants import DoctorApproval,Phases
 
 class BaseUser(AbstractBaseUser):
     is_active = models.BooleanField(_('active'),default=True)
@@ -48,4 +48,76 @@ class Demographics(models.Model):
     #doctor_accepted = models.BooleanField(default=False, null=True,default=DoctorApproval.OPEN)
     percentage = models.IntegerField(null=True)
     draft = models.BooleanField(default=True)
+    current_phase= models.CharField(max_length=50,default=Phases.DEMOGRAPHICS)
+
+class PreOp(models.Model):
+    demographics = models.ForeignKey(Demographics,on_delete=models.CASCADE, null=True, blank=True)
+    date =  models.DateField(null=True,blank=True)
+    passive_extension = models.IntegerField(null=True)
+    passive_flexion = models.IntegerField(null=True)
+    swelling = models.CharField(max_length=50, blank=True,null=True)
+    dynamometer_affected = models.IntegerField(null=True)
+    dynamometer_non_affected = models.IntegerField(null=True)
+    dynamometer_symmetry = models.FloatField(null=True)
+    hop_trial_1 = models.IntegerField(null=True)
+    hop_trial_2 = models.IntegerField(null=True)
+    hop_symmetry = models.IntegerField(null=True)
+    percentage = models.FloatField(null=True)
+    draft = models.BooleanField(default=True)
+
+class Phase1(models.Model):
+    Demographics = models.ForeignKey(Demographics,on_delete=models.CASCADE, null=True, blank=True)
+    date =  models.DateField(null=True,blank=True)
+    date_of_surgery = models.DateField(null=True,blank=True)
+    graft = models.CharField(max_length=50, blank=True,null=True)
+    passive_extension = models.IntegerField(null=True)
+    passive_flexion = models.IntegerField(null=True)
+    swelling = models.CharField(max_length=50, blank=True,null=True)
+    quads = models.IntegerField(null=True)
+    percentage = models.IntegerField(null=True)
+    draft = models.BooleanField(default=True)
+
+class Phase2(models.Model):
+    Demographics = models.ForeignKey(Demographics,on_delete=models.CASCADE, null=True, blank=True)
+    percentage = models.IntegerField(null=True)
+    draft = models.BooleanField(default=True)
+    date =  models.DateField(null=True,blank=True)
+    prone_hang = models.IntegerField(null=True)
+    passive_flexion = models.IntegerField(null=True)
+    swelling = models.CharField(max_length=50, blank=True,null=True)
+    functional_alignment = models.CharField(max_length=50, blank=True,null=True)
+    bridge_affected = models.IntegerField(null=True)
+    bridge_non_affected = models.IntegerField(null=True)
+    bridge_hurdle = models.CharField(max_length=50, blank=True,null=True)
+    bridge_symmetry = models.FloatField(null=True)
+    calf_affected = models.IntegerField(null=True)
+    calf_non_affected = models.IntegerField(null=True)
+    calf_hurdle = models.CharField(max_length=50, blank=True,null=True)
+    calf_symmetry = models.FloatField(null=True)
+    endurance_affected = models.IntegerField(null=True)
+    endurance_non_affected = models.IntegerField(null=True)
+    endurance_hurdle = models.CharField(max_length=50, blank=True,null=True)
+    endurance_symmetry = models.FloatField(null=True)
+    leg_rise_affected = models.IntegerField(null=True)
+    leg_rise_non_affected = models.IntegerField(null=True)
+    leg_rise_hurdle = models.CharField(max_length=50, blank=True,null=True)
+    leg_rise_symmetry = models.FloatField(null=True)
+    unipedal_open_affected=models.IntegerField(null=True)
+    unipedal_closed_affected = models.IntegerField(null=True)
+    unipedal_open_non_affected=models.IntegerField(null=True)
+    unipedal_closed_non_affected = models.IntegerField(null=True)
+    unipedal_affected_hurdel = models.CharField(max_length=50, blank=True,null=True)
+    unipedal_non_affected_hurdel = models.CharField(max_length=50, blank=True,null=True)
+    weight = models.FloatField(null=True)
+    leg_press_affected = models.IntegerField(null=True)
+    leg_press_affected_weight = models.FloatField(null=True)
+    leg_press_non_affected = models.IntegerField(null=True)
+    leg_press_non_affected_weight = models.FloatField(null=True)
+    squat = models.IntegerField(null=True)
+    squat_weight = models.FloatField(null=True)
+    
+
+
+
+
 
