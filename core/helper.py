@@ -608,7 +608,7 @@ def get_phases(data):
             progress_list[5]=phase4_data.first().percentage
         
     list_phases.append(serializer_data)
-    return list_phases
+    return list_phases,progress_list
 
 def send_email_doctor(patient,doctor):
     login_link = "http://localhost:3000/login/"

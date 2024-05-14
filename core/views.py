@@ -224,11 +224,12 @@ class GetPhases(APIView,BaseApiMixin):
         data=[]
         if request.GET.get('role') == PATIENT_ADMIN:
             obj=Demographics.objects.filter(id=request.GET.get('demographics_id'))
-            data.append(get_phases(obj))
+            result,progress=get_phases(obj)
+            data.append(result)
         elif request.GET.get('role') == DOCTOR_ADMIN:
             obj=Demographics.objects.filter(id=request.GET.get('demographics_id'))
-            data = get_phases(obj)
-        return self.success_response({Messages.SUCCESS: True, Messages.DATA: data, Messages.MESSAGE: Messages.DATA_IS_VALID})
+            data,progress = get_phases(obj)
+        return self.success_response({Messages.SUCCESS: True, Messages.DATA: data+[{'progress':progress}], Messages.MESSAGE: Messages.DATA_IS_VALID})
 
 class DemographicsEditView(APIView,BaseApiMixin):
     permission_classes = (AllowAny,)
