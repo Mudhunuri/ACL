@@ -66,9 +66,9 @@ class Register(APIView):
     def post(self, request, *args, **kwargs):
         try:
             #response = create_doctor_user(data=request.data)
-            if  request.data['role'] == 'doctor':
+            if request.data['role'] == 'doctor':
                 response = create_doctor_user(data=request.data)
-            elif  request.data['role'] == 'patient':
+            elif request.data['role'] == 'patient':
                 response = create_patient_user(data=request.data)
         except Exception as e:
             return Response({"success": False, "message": "Something went wrong","error":e})
@@ -163,18 +163,22 @@ class DemographicsView(APIView,BaseApiMixin):
     def create_record(self,request): 
         response = ''
         if request.data.get('phase') == Phases.DEMOGRAPHICS:
-            response=demographics_create(request)
+            status,response=demographics_create(request)
         elif request.data.get('phase') == Phases.PREOPS:
             response=create_preop(request)
         elif request.data.get('phase') == Phases.PHASE1:
             response=create_phase1(request)
         elif request.data.get('phase') == Phases.PHASE2:
             response=create_phase2(request)
+        elif request.data.get('phase') == Phases.PHASE3:
+            response=create_phase3(request)
+        elif request.data.get('phase') == Phases.PHASE4:
+            response=create_phase4(request)
         return response
     
     def edit_record(self,request):
         response=''
-        if request.data.get('phase') == Phases.DEMOGRAPHICS:
+        if not request.data.get('phase', None) or request.data.get('phase') == Phases.DEMOGRAPHICS:
             response=edit_demographics(request)
         elif request.data.get('phase') == Phases.PREOPS:
             response=edit_preops(request)
@@ -182,47 +186,73 @@ class DemographicsView(APIView,BaseApiMixin):
             response=edit_phase1(request)
         elif request.data.get('phase') == Phases.PHASE2:
             response=edit_phase2(request)
+        elif request.data.get('phase') == Phases.PHASE3:
+            response=edit_phase3(request)
+        elif request.data.get('phase') == Phases.PHASE4:
+            response=edit_phase4(request)
         return response
+
+class DemographicsGetView(APIView,BaseApiMixin):
+    permission_classes = (AllowAny,)
+    def get(self,request):
+        if request.GET.get('role') == PATIENT_ADMIN:
+            data=Demographics.objects.filter(patient__email=request.GET.get('email'))
+        elif request.GET.get('role') == DOCTOR_ADMIN:
+            data=Demographics.objects.filter(Q(doctor__email=request.GET.get('email'))|Q(doctors_history__contains={request.GET.get('email'):DoctorApproval.CANCELLED})| \
+                                             Q(doctors_history__contains={request.GET.get('email'):DoctorApproval.DECLINE}))
+        serializer = DemographicsSerializer(data,many=True)
+        return self.success_response({Messages.SUCCESS: True, Messages.DATA: serializer.data, Messages.MESSAGE: Messages.DATA_IS_VALID})
 
 class GetCurrentPhase(APIView,BaseApiMixin):
     permission_classes = (AllowAny,)
     def get(self,request):
-        if request.data.get('role') == PATIENT_ADMIN:
-            data=Demographics.objects.filter(patient__email=request.data.get('email'))
-        elif request.data.get('role') == DOCTOR_ADMIN:
-            data=Demographics.objects.filter(Q(doctor__email=request.data.get('email'))|Q(doctors_history__contains={request.data.get('email'):DoctorApproval.CANCELLED})| \
-                                             Q(doctors_history__contains={request.data.get('email'):DoctorApproval.DECLINE}))
-        serializer = DemographicsSerializer(data,many=True)
-        return self.success_response({Messages.SUCCESS: True, Messages.DATA: serializer.data, Messages.MESSAGE: Messages.DATA_IS_VALID})
+        data=[]
+        if request.GET.get('role') == PATIENT_ADMIN:
+            data=Demographics.objects.filter(patient__email=request.GET.get('email'))
+        elif request.GET.get('role') == DOCTOR_ADMIN:
+            data=Demographics.objects.filter(Q(doctor__email=request.GET.get('email'))|Q(doctors_history__contains={request.GET.get('email'):DoctorApproval.CANCELLED})| \
+                                             Q(doctors_history__contains={request.GET.get('email'):DoctorApproval.DECLINE}))
+        
+        if data:
+            serializer = DemographicsSerializer(data,many=True)
+            return self.success_response({Messages.SUCCESS: True, Messages.DATA: serializer.data, Messages.MESSAGE: Messages.DATA_IS_VALID})
+        return self.success_response({Messages.SUCCESS: True, Messages.DATA: data, Messages.MESSAGE:"No data present"})
 
 class GetPhases(APIView,BaseApiMixin):
     permission_classes = (AllowAny,)
     def get(self,request):
-
-        if request.data.get('role') == PATIENT_ADMIN:
-            obj=Demographics.objects.filter(patient__email=request.data.get('email'))
-            serializer = DemographicsSerializer(data,many=True)
-            data=serializer.data
-        elif request.data.get('role') == DOCTOR_ADMIN:
-            obj=Demographics.objects.filter(id=request.data.get('demographics_id'))
-            data = get_phases_doctor(obj)
+        data=[]
+        if request.GET.get('role') == PATIENT_ADMIN:
+            obj=Demographics.objects.filter(id=request.GET.get('demographics_id'))
+            data.append(get_phases(obj))
+        elif request.GET.get('role') == DOCTOR_ADMIN:
+            obj=Demographics.objects.filter(id=request.GET.get('demographics_id'))
+            data = get_phases(obj)
         return self.success_response({Messages.SUCCESS: True, Messages.DATA: data, Messages.MESSAGE: Messages.DATA_IS_VALID})
 
 class DemographicsEditView(APIView,BaseApiMixin):
     permission_classes = (AllowAny,)
     def put(self,request):
-        updated=edit_demographics(request)
+        updated=DemographicsView().edit_record(request)
         if updated:
             return self.success_response({Messages.SUCCESS: True,Messages.MESSAGE: 'updated successfully'})
         return self.error_response({Messages.SUCCESS: False,Messages.MESSAGE: 'couldnt update the data'})
 
+class DemographicsDelete(APIView,BaseApiMixin):
+    permission_classes = (AllowAny,)
+    def delete(self,request):
+        if Demographics.objects.filter(id=request.GET.get('id')).exists():
+            Demographics.objects.filter(id=request.GET.get('id')).delete()
+            return self.success_response({Messages.SUCCESS: True,Messages.MESSAGE: 'Survey deleted successfully'})
+        return self.error_response({Messages.SUCCESS: False,Messages.MESSAGE: 'Requested record is not present in database'})
+    
 class DemographicsDoctorView(APIView,BaseApiMixin):
     permission_classes = (AllowAny,)
     def put(self,request):
         history={}
         obj=Demographics.objects.get(id=request.data['id'])
         email,history=obj.doctor.email,obj.doctors_history
-        if request.data['accept']:
+        if request.data['accept'] == DoctorApproval.ACCEPT:
             history[email]=DoctorApproval.INPROGRESS
             Demographics.objects.filter(id=request.data['id']).update(doctors_history=history,status=DoctorApproval.INPROGRESS)
         else:

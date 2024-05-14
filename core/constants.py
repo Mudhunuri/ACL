@@ -7,12 +7,14 @@ class Messages:
     MESSAGE = "message"
     ERROR = "errors"
     DATA_IS_VALID = "Data is valid"
+
 class DoctorApproval:
     ACCEPT = 'accepted'
     OPEN = 'open'
     DECLINE = 'declined'
     INPROGRESS = 'inprogress'
     CANCELLED = 'cancelled'
+
 class Phases:
     DEMOGRAPHICS = 'Demographics'
     PREOPS = 'Pre-Op'
@@ -20,3 +22,4 @@ class Phases:
     PHASE2 = 'Phase 2'
     PHASE3 = 'Phase 3'
     PHASE4 = 'Phase 4'
+    COMPLETED = 'Completed'
